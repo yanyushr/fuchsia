@@ -166,27 +166,53 @@ zx_status_t DeviceProxy::PciGetDeviceInfo(zx_pcie_device_info_t* out_info) {
     return st;
 }
 
-zx_status_t DeviceProxy::PciConfigRead(uint16_t offset, size_t width, uint32_t* out_value) {
+template <typename T>
+zx_status_t DeviceProxy::PciConfigRead(uint16_t offset, T* out_value) {
     PciRpcMsg req = {};
     PciRpcMsg resp = {};
 
     req.cfg.offset = offset;
-    req.cfg.width = static_cast<uint16_t>(width);
+    req.cfg.width = static_cast<uint16_t>(sizeof(T));
     zx_status_t st = RpcRequest(PCI_OP_CONFIG_READ, NULL, &req, &resp);
     if (st == ZX_OK) {
-        *out_value = resp.cfg.value;
+        *out_value = static_cast<T>(resp.cfg.value);
     }
     return st;
 }
 
-zx_status_t DeviceProxy::PciConfigWrite(uint16_t offset, size_t width, uint32_t value) {
+zx_status_t DeviceProxy::PciConfigRead8(uint16_t offset, uint8_t* out_value) {
+    return PciConfigRead(offset, out_value);
+}
+
+zx_status_t DeviceProxy::PciConfigRead16(uint16_t offset, uint16_t* out_value) {
+    return PciConfigRead(offset, out_value);
+}
+
+zx_status_t DeviceProxy::PciConfigRead32(uint16_t offset, uint32_t* out_value) {
+    return PciConfigRead(offset, out_value);
+}
+
+template <typename T>
+zx_status_t DeviceProxy::PciConfigWrite(uint16_t offset, T value) {
     PciRpcMsg req = {};
     PciRpcMsg resp = {};
 
     req.cfg.offset = offset;
-    req.cfg.width = static_cast<uint16_t>(width);
+    req.cfg.width = static_cast<uint16_t>(sizeof(T));
     req.cfg.value = value;
     return RpcRequest(PCI_OP_CONFIG_WRITE, NULL, &req, &resp);
+}
+
+zx_status_t DeviceProxy::PciConfigWrite8(uint16_t offset, uint8_t value) {
+    return PciConfigWrite(offset, value);
+}
+
+zx_status_t DeviceProxy::PciConfigWrite16(uint16_t offset, uint16_t value) {
+    return PciConfigWrite(offset, value);
+}
+
+zx_status_t DeviceProxy::PciConfigWrite32(uint16_t offset, uint32_t value) {
+    return PciConfigWrite(offset, value);
 }
 
 zx_status_t DeviceProxy::PciGetFirstCapability(uint8_t cap_id, uint8_t* out_offset) {

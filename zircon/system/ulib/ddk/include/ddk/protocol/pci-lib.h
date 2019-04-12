@@ -5,6 +5,34 @@
 #ifndef DDK_PROTOCOL_PCI_LIB_H_
 #define DDK_PROTOCOL_PCI_LIB_H_
 
+#ifdef __cplusplus
+#include <ddktl/protocol/pci.h>
+#include <lib/mmio/mmio.h>
+
+static inline zx_status_t PciMapBarBuffer(ddk::PciProtocolClient* pci, uint32_t bar_id,
+                                          uint32_t cache_policy,
+                                          std::optional<ddk::MmioBuffer>* mmio) {
+    zx_pci_bar_t bar;
+    zx_status_t st = pci->GetBar(bar_id, &bar);
+    if (st != ZX_OK) {
+        return st;
+    }
+
+    if (bar.type == ZX_PCI_BAR_TYPE_PIO || bar.handle == ZX_HANDLE_INVALID) {
+        return ZX_ERR_WRONG_TYPE;
+    }
+
+    st = ddk::MmioBuffer::Create(0, bar.size, zx::vmo(bar.handle), cache_policy, mmio);
+    if (st != ZX_OK) {
+        zx_handle_close(bar.handle);
+        return st;
+    }
+
+    return ZX_OK;
+}
+
+#endif
+
 #include <ddk/protocol/pci.h>
 #include <ddk/mmio-buffer.h>
 
@@ -24,42 +52,6 @@ static inline zx_status_t pci_map_bar_buffer(const pci_protocol_t* pci, uint32_t
         return ZX_ERR_WRONG_TYPE;
     }
     return mmio_buffer_init(buffer, 0, bar.size, bar.handle, cache_policy);
-}
-
-static inline zx_status_t pci_config_read8(const pci_protocol_t* pci,
-                                           uint16_t offset, uint8_t* value) {
-    uint32_t value_;
-    zx_status_t st = pci->ops->config_read(pci->ctx, offset, sizeof(uint8_t), &value_);
-    *value = value_ & UINT8_MAX;
-    return st;
-}
-
-static inline zx_status_t pci_config_read16(const pci_protocol_t* pci,
-                                            uint16_t offset, uint16_t* value) {
-    uint32_t value_;
-    zx_status_t st = pci->ops->config_read(pci->ctx, offset, sizeof(uint16_t), &value_);
-    *value = value_ & UINT16_MAX;
-    return st;
-}
-
-static inline zx_status_t pci_config_read32(const pci_protocol_t* pci,
-                                            uint16_t offset, uint32_t* value) {
-    return pci->ops->config_read(pci->ctx, offset, sizeof(uint32_t), value);
-}
-
-static inline zx_status_t pci_config_write8(const pci_protocol_t* pci,
-                                            uint16_t offset, uint8_t value) {
-    return pci->ops->config_write(pci->ctx, offset, sizeof(uint8_t), value);
-}
-
-static inline zx_status_t pci_config_write16(const pci_protocol_t* pci,
-                                             uint16_t offset, uint16_t value) {
-    return pci->ops->config_write(pci->ctx, offset, sizeof(uint16_t), value);
-}
-
-static inline zx_status_t pci_config_write32(const pci_protocol_t* pci,
-                                             uint16_t offset, uint32_t value) {
-    return pci->ops->config_write(pci->ctx, offset, sizeof(uint32_t), value);
 }
 
 __END_CDECLS
